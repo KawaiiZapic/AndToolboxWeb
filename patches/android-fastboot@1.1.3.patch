@@ -1,0 +1,42 @@
+diff --git a/dist/fastboot.cjs b/dist/fastboot.cjs
+index 26d09baa437e1b2acc7924b0ba04500043fef94d..df11581152d0c1e52d701dc395ad650ea3024750 100644
+--- a/dist/fastboot.cjs
++++ b/dist/fastboot.cjs
+@@ -8367,7 +8367,7 @@ class FastbootDevice {
+         };
+         let respStatus;
+         do {
+-            let respPacket = await this.device.transferIn(this.epIn, 64);
++            let respPacket = await this.device.transferIn(this.epIn, 256);
+             let response = new TextDecoder().decode(respPacket.data);
+             respStatus = response.substring(0, 4);
+             let respMessage = response.substring(4);
+@@ -8401,8 +8401,8 @@ class FastbootDevice {
+      * @throws {FastbootError}
+      */
+     async runCommand(command) {
+-        // Command and response length is always 64 bytes regardless of protocol
+-        if (command.length > 64) {
++        // Command length is always 4096 bytes regardless of protocol
++        if (command.length > 4096) {
+             throw new RangeError();
+         }
+         // Send raw UTF-8 command
+diff --git a/dist/fastboot.min.cjs b/dist/fastboot.min.cjs
+deleted file mode 100644
+index 520db6ad6aa0e2c9585e8bdbe19ca7c49eb51507..0000000000000000000000000000000000000000
+diff --git a/dist/fastboot.min.cjs.map b/dist/fastboot.min.cjs.map
+deleted file mode 100644
+index cf60543f823ac232a04e34b0462b22457aac39f1..0000000000000000000000000000000000000000
+diff --git a/dist/fastboot.min.mjs b/dist/fastboot.min.mjs
+deleted file mode 100644
+index 9d6ca12f6b6e86e0612ae9c9b47d13e033bbb6cf..0000000000000000000000000000000000000000
+diff --git a/dist/fastboot.min.mjs.map b/dist/fastboot.min.mjs.map
+deleted file mode 100644
+index a59dc754fa38c70b246787c6e6a390611d38120e..0000000000000000000000000000000000000000
+diff --git a/dist/fastboot.mjs b/dist/fastboot.mjs
+deleted file mode 100644
+index e7530053385ca0fcf5b023f6f20c8e129961f7c6..0000000000000000000000000000000000000000
+diff --git a/dist/fastboot.mjs.map b/dist/fastboot.mjs.map
+deleted file mode 100644
+index 2becd04fee8c8beb28040291014056b755f22a9c..0000000000000000000000000000000000000000
