@@ -108,7 +108,7 @@
                         </n-space>
                             <n-text>危险操作</n-text>
                         <n-space>
-                            <n-button type="error">清除数据</n-button>
+                            <n-button type="error" @click="requestWipeDevice">清除数据</n-button>
                             <n-button type="error">锁定Bootloader</n-button>
                         </n-space>
                         <n-text>连接</n-text>
@@ -391,6 +391,83 @@ async function requestFlashImageToTarget() {
         },
         positiveText: '刷写',
         negativeText: '取消',
+    });
+}
+
+import ConfirmInput from "./ConfirmInput.vue";
+async function requestWipeDevice() {
+    const dialogInst = dialog.error({
+        title: "清空数据",
+        content() {
+            return [
+                "确定要要清除设备 ",
+                h("b", DeviceInfo.product),
+                " 上的所有数据吗? ",
+                h("br"),
+                h("br"),
+                "务必优先使用Recovery清空数据, 在Fastboot下清空数据需要重新格式化cache和userdata分区, 否则可能无法正常进入系统.",
+                h("br"),
+                h("br"),
+                "此操作会导致",
+                h("b", "设备上所有数据丢失"),
+                ", 包括但不限于",
+                h("b", "所有应用和数据, 照片, 聊天记录, 联系人, 短信, 模块"),
+                ", 请备份所有重要数据, 仔细确认",
+                h("b", "设备名称"),
+                "确实为需要清空数据的设备.",
+                h("br"),
+                h("br"),
+                `在下方输入框内输入 "wipe" 确认清空该设备上的所有数据.`,
+                h("br"), 
+                h("br"),
+                h(ConfirmInput, { 
+                    onValidated (validated) {
+                        dialogInst.positiveButtonProps!.disabled = !validated;
+                    },
+                    confirmWord: `wipe`
+                })
+            ]
+        },
+        async onPositiveClick() {
+            dialogInst.loading = true;
+            dialogInst.maskClosable = false;
+            try {
+                await device.runCommand("erase:userdata");
+                await device.runCommand("erase:cache");
+            } catch(e) {
+                if (e instanceof FastbootError) {
+                    dialog.error({
+                        title: "清空数据失败",
+                        content: "无法清空数据, Bootloader返回错误: " + e.bootloaderMessage,
+                        positiveText: "确定"
+                    });
+                } else if (e instanceof Error) {
+                    dialog.error({
+                        title: "清空数据失败",
+                        content: "无法清空数据, 出现错误" + e.message,
+                        positiveText: "确定"
+                    });
+                } else {
+                    throw e;
+                }
+                
+                dialogInst.loading = false;
+                dialogInst.maskClosable = true;
+                return false;
+            }
+        },
+        onClose() {
+            if (dialogInst.loading) return false;
+        },
+        onNegativeClick() {
+            if (dialogInst.loading) return false;
+        },
+        positiveText: '清空',
+        negativeText: '取消',
+        positiveButtonProps: {
+            disabled: true
+        },
+        class: "w-500px!"
     });
 }
 </script>
