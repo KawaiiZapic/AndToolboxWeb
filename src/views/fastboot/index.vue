@@ -333,14 +333,14 @@ async function requestFlashImageToTarget() {
     const target = ComputedFlashTarget.value;
     if (!file?.file || !target) return;
     const dialogInst = dialog.warning({
-        title: "刷写单个镜像",
+        title: "刷入单个镜像",
         content() {
            return [
                 "确定要在设备 ",
                 h("b", DeviceInfo.product), 
                 " 上将镜像 ", 
                 h("b", file.name), 
-                " 刷写到分区 ", 
+                " 刷入到分区 ", 
                 h("b", target),
                 " 吗?", 
                 h("br"), 
@@ -365,17 +365,13 @@ async function requestFlashImageToTarget() {
                 try {
                     await device.flashBlob(target, file.file, (e) => {
                         dialogInst.positiveText = (e * 100).toFixed(1).toString() + "%";
-                        if (e === 1) {
-                            resolve(true);
-                        }
                     });
                     dialog.success({
-                        "title": "刷写单个镜像",
-                        "content": "成功刷写镜像文件.",
+                        "title": "刷入单个镜像",
+                        "content": "成功刷入镜像文件.",
                         positiveText: "确定"
                     });
                 } catch (e) {
-                    resolve(true);
                     if (e instanceof FastbootError) {
                         dialog.error({
                             title: "刷写镜像文件失败",
@@ -391,6 +387,8 @@ async function requestFlashImageToTarget() {
                     } else {
                         throw e;
                     }
+                } finally {
+                    resolve(true);
                 }
             });
         },
