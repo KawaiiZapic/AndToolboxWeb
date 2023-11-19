@@ -32,7 +32,7 @@
                     {{ DeviceInfo.product }} <span class="text-sm opacity-80">({{ DeviceInfo.serialno }})</span>
                 </div>
                 <div class="text-md opacity-80 mb-4">
-                    Bootloader {{ DeviceInfo.unlocked === "yes" ? "已解锁" : "已锁定" }}
+                    Bootloader {{ DeviceInfo.unlocked === "yes" ? "已解锁" : "已锁定" }}, {{ DeviceInfo['is-userspace'] === "yes" ? "Userspace Fastboot" : "Bootloader Fastboot" }}
                 </div>
             </template>
             <template v-else>
