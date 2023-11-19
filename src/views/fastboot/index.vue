@@ -100,10 +100,18 @@
                     </n-space>
                 </n-card>
                 <n-card title="设备操作">
-                    <n-space>
-                        <n-button @click="rebootTo()">重启到系统</n-button>
-                        <n-button @click="rebootTo('recovery')">重启到 Recovery</n-button>
-                        <n-button @click="rebootTo('bootloader')">重启到 Bootloader</n-button>
+                    <n-space vertical>
+                        <n-text>重启</n-text>
+                        <n-space>
+                            <n-button @click="rebootTo()">重启到系统</n-button>
+                            <n-button @click="rebootTo('bootloader')">重启到 Bootloader</n-button>
+                        </n-space>
+                            <n-text>危险操作</n-text>
+                        <n-space>
+                            <n-button type="error">清除数据</n-button>
+                            <n-button type="error">锁定Bootloader</n-button>
+                        </n-space>
+                        <n-text>连接</n-text>
                         <n-button @click="disconnectDevice">断开连接</n-button>
                     </n-space>
                 </n-card>
@@ -197,7 +205,25 @@ async function handleBootImageFileDrop(e: { file: UploadFileInfo }) {
     const filename = e.file.name;
     const dialogInst = dialog.warning({
         title: "从镜像文件启动",
-        content: `确定要在设备 "${DeviceInfo.product}" 上启动镜像 "${filename}" 吗?`,
+        content() {
+            return [
+                "确定要在设备 ",
+                h("b", DeviceInfo.product),
+                " 启动镜像文件 ",
+                h("b", filename),
+                " 吗?",
+                h("br"),
+                h("br"),
+                "刷入错误的镜像可能",
+                h("b", "导致设备损坏"),
+                ", 请仔细确认", 
+                h("b", "设备名称"), 
+                "以及", 
+                "将要刷入的", 
+                h("b", "镜像文件名"),
+                "."
+            ]
+        },
         onPositiveClick() {
             dialogInst.loading = true;
             dialogInst.maskClosable = false;
@@ -297,7 +323,29 @@ async function requestFlashImageToTarget() {
     if (!file?.file || !target) return;
     const dialogInst = dialog.warning({
         title: "刷写单个镜像",
-        content: `确定要在设备 "${DeviceInfo.product}" 上将镜像 "${file.name}" 刷写到分区 ${target} 吗?`,
+        content() {
+           return [
+                "确定要在设备 ",
+                h("b", DeviceInfo.product), 
+                " 上将镜像 ", 
+                h("b", file.name), 
+                " 刷写到分区 ", 
+                h("b", target),
+                " 吗?", 
+                h("br"), 
+                h("br"),
+                "刷入错误的镜像可能",
+                h("b", "导致设备损坏"),
+                ", 请仔细确认",
+                h("b", "设备名称"),
+                ", ",
+                "将要刷入的",
+                h("b", "镜像文件名"),
+                "以及",
+                h("b", "目标分区"),
+                "."
+            ]
+        },
         onPositiveClick() {
             dialogInst.loading = true;
             dialogInst.maskClosable = false;
@@ -336,10 +384,10 @@ async function requestFlashImageToTarget() {
             });
         },
         onClose() {
-            if (dialogInst.loading) return false; 
+            if (dialogInst.loading) return false;
         },
         onNegativeClick() {
-           if (dialogInst.loading) return false;
+            if (dialogInst.loading) return false;
         },
         positiveText: '刷写',
         negativeText: '取消',
@@ -347,6 +395,8 @@ async function requestFlashImageToTarget() {
 }
 </script>
 
-<style scoped>.animated-wrapper :deep(.n-tabs-nav--top) {
+<style scoped>
+.animated-wrapper :deep(.n-tabs-nav--top) {
     display: none;
-}</style>
+}
+</style>
