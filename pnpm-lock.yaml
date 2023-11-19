@@ -6,7 +6,7 @@ settings:
 
 patchedDependencies:
   android-fastboot@1.1.3:
-    hash: cxf7q7fytvmlst5izenltovxhq
+    hash: sqf3til23temsbx4aguudq4pue
     path: patches/android-fastboot@1.1.3.patch
 
 dependencies:
@@ -15,7 +15,7 @@ dependencies:
     version: 10.6.1(vue@3.3.8)
   android-fastboot:
     specifier: 1.1.3
-    version: 1.1.3(patch_hash=cxf7q7fytvmlst5izenltovxhq)
+    version: 1.1.3(patch_hash=sqf3til23temsbx4aguudq4pue)
   naive-ui:
     specifier: ^2.35.0
     version: 2.35.0(vue@3.3.8)
@@ -1021,7 +1021,7 @@ packages:
     hasBin: true
     dev: true
 
-  /android-fastboot@1.1.3(patch_hash=cxf7q7fytvmlst5izenltovxhq):
+  /android-fastboot@1.1.3(patch_hash=sqf3til23temsbx4aguudq4pue):
     resolution: {integrity: sha512-WKgJR25RFS6zuIeHlg7hwNiX6MaGYRmDVR1w0ZZv7iXCfJueUVddb7+eCrG0GNzTyJDbTdetVN1R9Pls9r0DKA==}
     dependencies:
       '@zip.js/zip.js': 2.2.27

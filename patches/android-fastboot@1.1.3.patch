@@ -1,5 +1,5 @@
 diff --git a/dist/fastboot.cjs b/dist/fastboot.cjs
-index 26d09baa437e1b2acc7924b0ba04500043fef94d..df11581152d0c1e52d701dc395ad650ea3024750 100644
+index 26d09baa437e1b2acc7924b0ba04500043fef94d..e30f6c33ce0864763a3b133a6edf150f6267282c 100644
 --- a/dist/fastboot.cjs
 +++ b/dist/fastboot.cjs
 @@ -8367,7 +8367,7 @@ class FastbootDevice {
@@ -22,6 +22,19 @@ index 26d09baa437e1b2acc7924b0ba04500043fef94d..df11581152d0c1e52d701dc395ad650e
              throw new RangeError();
          }
          // Send raw UTF-8 command
+@@ -8450,8 +8450,11 @@ class FastbootDevice {
+         try {
+             let resp = (await this.getVariable("max-download-size")).toLowerCase();
+             if (resp) {
++				// not all device provide max-download-size in hex way
++				// prefer smaller size to ensure flash will success
++				let radix = /[a-f]/.exec(resp) ? 16 : 10;
+                 // AOSP fastboot requires hex
+-                return Math.min(parseInt(resp, 16), MAX_DOWNLOAD_SIZE);
++                return Math.min(parseInt(resp, radix), MAX_DOWNLOAD_SIZE);
+             }
+         }
+         catch (error) {
 diff --git a/dist/fastboot.min.cjs b/dist/fastboot.min.cjs
 deleted file mode 100644
 index 520db6ad6aa0e2c9585e8bdbe19ca7c49eb51507..0000000000000000000000000000000000000000
