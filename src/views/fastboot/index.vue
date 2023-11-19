@@ -173,14 +173,18 @@ async function connectDevice() {
     }
     isDeviceInfoLoading.value = true;
     try {
-
         (await device.getVariable("all"))
             ?.split("\n")
-            .map(val => val.split(":"))
+            .map(val => {
+                const split = val.lastIndexOf(":");
+                return [
+                    val.substring(0, split),
+                    val.substring(split + 1)
+                ]
+            })
             .forEach(kv => {
                 DeviceInfo[kv[0]] = kv[1].trim();
             });
-
         isDeviceReadError.value = false;
     } catch (e) {
         isDeviceReadError.value = true;
