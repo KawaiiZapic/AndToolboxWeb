@@ -1,5 +1,5 @@
 diff --git a/dist/fastboot.cjs b/dist/fastboot.cjs
-index 26d09baa437e1b2acc7924b0ba04500043fef94d..e30f6c33ce0864763a3b133a6edf150f6267282c 100644
+index 26d09baa437e1b2acc7924b0ba04500043fef94d..ecd7a9a1f0bec07af303cc3f97edeff2e8cfa42d 100644
 --- a/dist/fastboot.cjs
 +++ b/dist/fastboot.cjs
 @@ -8367,7 +8367,7 @@ class FastbootDevice {
@@ -22,15 +22,14 @@ index 26d09baa437e1b2acc7924b0ba04500043fef94d..e30f6c33ce0864763a3b133a6edf150f
              throw new RangeError();
          }
          // Send raw UTF-8 command
-@@ -8450,8 +8450,11 @@ class FastbootDevice {
+@@ -8450,8 +8450,9 @@ class FastbootDevice {
          try {
              let resp = (await this.getVariable("max-download-size")).toLowerCase();
              if (resp) {
-+				// not all device provide max-download-size in hex way
-+				// prefer smaller size to ensure flash will success
-+				let radix = /[a-f]/.exec(resp) ? 16 : 10;
-                 // AOSP fastboot requires hex
+-                // AOSP fastboot requires hex
 -                return Math.min(parseInt(resp, 16), MAX_DOWNLOAD_SIZE);
++				// not all device provide max-download-size in hex way
++				let radix = resp.startsWith("0x") ? 16 : 10;
 +                return Math.min(parseInt(resp, radix), MAX_DOWNLOAD_SIZE);
              }
          }
