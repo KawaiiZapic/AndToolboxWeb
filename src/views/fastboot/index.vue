@@ -106,7 +106,14 @@
                             <n-button @click="rebootTo()">重启到系统</n-button>
                             <n-button @click="rebootTo('bootloader')">重启到 Bootloader</n-button>
                         </n-space>
-                            <n-text>危险操作</n-text>
+                        <template v-if="DeviceInfo['current-slot']">
+                            <n-text>A/B分区 (当前槽: {{ DeviceInfo['current-slot'].toUpperCase() }})</n-text>
+                            <n-space>
+                                <n-button v-if="DeviceInfo['current-slot'].toUpperCase() === 'B'" @click="switchSlot('a')">切换到槽 A</n-button>
+                                <n-button v-else @click="switchSlot('b')">切换到槽 B</n-button>
+                            </n-space>
+                        </template>
+                        <n-text>危险操作</n-text>
                         <n-space>
                             <n-button type="error" @click="requestWipeDevice">清除数据</n-button>
                             <n-button type="error">锁定Bootloader</n-button>
@@ -473,6 +480,31 @@ async function requestWipeDevice() {
         },
         class: "w-500px!"
     });
+}
+
+async function switchSlot(slot: string) {
+    try {
+        await device.runCommand("set_active:" + slot);
+        DeviceInfo["current-slot"] = (await device.getVariable("current-slot"))!;
+    } catch (e) {
+        if (e instanceof FastbootError) {
+            dialog.error({
+                title: "切换槽失败",
+                content: "无法切换槽, Bootloader返回错误: " + e.bootloaderMessage,
+                positiveText: "确定"
+            });
+        } else if (e instanceof Error) {
+            dialog.error({
+                title: "切换槽失败",
+                content: "无法切换槽, 出现错误" + e.message,
+                positiveText: "确定"
+            });
+        } else {
+            throw e;
+        }
+        return false;
+    }
+    
 }
 </script>
 
