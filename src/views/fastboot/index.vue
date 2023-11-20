@@ -1,6 +1,6 @@
 <template>
-    <n-tabs class="animated-wrapper" animated :value="isConnected ? '1' : '0'">
-        <n-tab-pane name="0">
+    <n-tabs class="animated-wrapper" animated :value="ComputedCurrentTab">
+        <n-tab-pane name="waiting">
             <template v-if="isBrowserSupported">
                 <div class="text-xl">
                     未连接设备
@@ -26,13 +26,14 @@
                 </div>
             </template>
         </n-tab-pane>
-        <n-tab-pane name="1">
+        <n-tab-pane name="operate">
             <template v-if="!isDeviceReadError">
                 <div class="text-xl">
                     {{ DeviceInfo.product }} <span class="text-sm opacity-80">({{ DeviceInfo.serialno }})</span>
                 </div>
                 <div class="text-md opacity-80 mb-4">
-                    Bootloader {{ DeviceInfo.unlocked === "yes" ? "已解锁" : "已锁定" }}, {{ DeviceInfo['is-userspace'] === "yes" ? "Userspace Fastboot" : "Bootloader Fastboot" }}
+                    Bootloader {{ DeviceInfo.unlocked === "yes" ? "已解锁" : "已锁定" }}, {{ DeviceInfo['is-userspace'] === "yes"
+                        ? "Userspace Fastboot" : "Bootloader Fastboot" }}
                 </div>
             </template>
             <template v-else>
@@ -46,8 +47,8 @@
             <n-space vertical>
                 <n-card title="从镜像启动">
                     <n-space justify="center">
-                        <n-upload ref="BootImageFileDropRef" @change="handleBootImageFileDrop" accept=".img,*"
-                            :show-file-list="false">
+                        <n-upload :disabled="isDeviceBusy" ref="BootImageFileDropRef" @change="handleBootImageFileDrop"
+                            accept=".img,*" :show-file-list="false">
                             <n-upload-dragger>
                                 <div class="flex items-center">
                                     <n-icon :size="48" class="opacity-50 mr-4">
@@ -68,8 +69,8 @@
                 </n-card>
                 <n-card title="刷入单个镜像">
                     <n-space justify="center" align="center">
-                        <n-upload ref="FlashImageFileDropRef" v-model:file-list="FlashImageFile" accept=".img,*"
-                            :show-file-list="false">
+                        <n-upload :disabled="isDeviceBusy" class="max-w-420px" ref="FlashImageFileDropRef"
+                            v-model:file-list="FlashImageFile" accept=".img,*" :show-file-list="false">
                             <n-upload-dragger>
                                 <div class="flex items-center">
                                     <n-icon :size="48" class="opacity-50 mr-4">
@@ -86,15 +87,54 @@
                                 </div>
                             </n-upload-dragger>
                         </n-upload>
-                        <n-space vertical justify="center" class="w-160px h-full">
-                            <n-select :options="FlashTargetOption" v-model:value="FlashSelectedTarget"
-                                placeholder="刷写到..." />
-                            <n-input v-model:value="FlashCustomTarget" v-if="FlashSelectedTarget === 'other'"
-                                placeholder="刷写到..." />
+                        <n-space vertical justify="center" class="w-240px h-full">
+                            <n-select :disabled="isDeviceBusy" :options="FlashTargetOption"
+                                v-model:value="FlashSelectedTarget" placeholder="刷写到..." />
+                            <n-input :disabled="isDeviceBusy" v-model:value="FlashCustomTarget"
+                                v-if="FlashSelectedTarget === 'other'" placeholder="刷写到..." />
                             <n-button class="w-full overflow-hidden" type="primary"
-                                :disabled="!FlashImageFile[0]?.name || !ComputedFlashTarget"
+                                :disabled="!FlashImageFile[0]?.name || !ComputedFlashTarget || isDeviceBusy"
                                 @click="requestFlashImageToTarget">
                                 刷写 {{ ComputedFlashTarget }}
+                            </n-button>
+                        </n-space>
+                    </n-space>
+                </n-card>
+                <n-card title="刷入线刷包">
+                    <n-space justify="center" align="center">
+                        <n-upload :disabled="isDeviceBusy" :multiple="false" class="max-w-420px"
+                            ref="FlashDirectoryFileDropRef" v-model:file-list="FlashDirectoryFileList"
+                            :show-file-list="false" directory>
+                            <n-upload-dragger>
+                                <div class="flex items-center">
+                                    <n-icon :size="48" class="opacity-50 mr-4">
+                                        <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+                                            viewBox="0 0 24 24">
+                                            <path
+                                                d="M18 15v3H6v-3H4v3c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-3h-2zM7 9l1.41 1.41L11 7.83V16h2V7.83l2.59 2.58L17 9l-5-5l-5 5z"
+                                                fill="currentColor"></path>
+                                        </svg>
+                                    </n-icon>
+                                    <n-text class="text-lg">
+                                        {{ ComputedFlashDirectoryName || "点击或者拖动解压后的线刷包文件夹到该区域" }}
+                                    </n-text>
+                                </div>
+                            </n-upload-dragger>
+                        </n-upload>
+                        <n-space vertical justify="center" class="w-240px h-full">
+                            <n-select :options="FlashDirectoryScriptOptions" v-model:value="FlashDirectorySelectedScript"
+                                placeholder="选择刷写脚本..." :disabled="isDeviceBusy">
+                                <template #empty>
+                                    <n-space vertical class="text-center">
+                                        <div class="text-lg">没有可用的刷写脚本</div>
+                                        <div class="opacity-70">请重新选择文件夹, 确保被选择的文件夹中有.bat脚本.</div>
+                                    </n-space>
+                                </template>
+                            </n-select>
+                            <n-button class="w-full overflow-hidden" type="primary"
+                                :disabled="!FlashDirectorySelectedScript || isDeviceBusy"
+                                @click="requestFlashDirectoryToTarget">
+                                刷写
                             </n-button>
                         </n-space>
                     </n-space>
@@ -103,23 +143,24 @@
                     <n-space vertical>
                         <n-text>重启</n-text>
                         <n-space>
-                            <n-button @click="rebootTo()">重启到系统</n-button>
-                            <n-button @click="rebootTo('bootloader')">重启到 Bootloader</n-button>
+                            <n-button :disabled="isDeviceBusy" @click="rebootTo()">重启到系统</n-button>
+                            <n-button :disabled="isDeviceBusy" @click="rebootTo('bootloader')">重启到 Bootloader</n-button>
                         </n-space>
                         <template v-if="DeviceInfo['current-slot']">
                             <n-text>A/B分区 (当前槽: {{ DeviceInfo['current-slot'].toUpperCase() }})</n-text>
                             <n-space>
-                                <n-button v-if="DeviceInfo['current-slot'].toUpperCase() === 'B'" @click="switchSlot('a')">切换到槽 A</n-button>
-                                <n-button v-else @click="switchSlot('b')">切换到槽 B</n-button>
+                                <n-button :disabled="isDeviceBusy" v-if="DeviceInfo['current-slot'].toUpperCase() === 'B'"
+                                    @click="switchSlot('a')">切换到槽 A</n-button>
+                                <n-button :disabled="isDeviceBusy" v-else @click="switchSlot('b')">切换到槽 B</n-button>
                             </n-space>
                         </template>
                         <n-text>危险操作</n-text>
                         <n-space>
-                            <n-button type="error" @click="requestWipeDevice">清除数据</n-button>
-                            <n-button type="error" @click="requestLockBl">锁定Bootloader</n-button>
+                            <n-button :disabled="isDeviceBusy" type="error" @click="requestWipeDevice">清除数据</n-button>
+                            <n-button :disabled="isDeviceBusy" type="error" @click="requestLockBl">锁定Bootloader</n-button>
                         </n-space>
                         <n-text>连接</n-text>
-                        <n-button @click="disconnectDevice">断开连接</n-button>
+                        <n-button :disabled="isDeviceBusy" @click="disconnectDevice">断开连接</n-button>
                     </n-space>
                 </n-card>
                 <n-card title="设备信息">
@@ -140,6 +181,23 @@
                 </n-card>
             </n-space>
         </n-tab-pane>
+        <n-tab-pane name="flashDirectory">
+            <n-card title="正在刷入...">
+                <div class="flex flex-col">
+                    <n-scrollbar class="max-h-75vh">
+                        <n-timeline>
+                            <n-timeline-item v-for="(state, i) in FlashStateList" :key="i" :content="state.description"
+                                :type="state.status === 'pending' ? 'default' : (state.status === 'progressing' ? 'info' : state.status)"
+                                :line-type="state.status === 'pending' ? 'dashed' : 'default'" />
+                        </n-timeline>
+                    </n-scrollbar>
+                    <n-space class="mt-8 flex-shrink-0" v-if="!isDeviceBusy">
+                        <n-button type="primary" @click="FlashStateList = []">返回</n-button>
+                        <n-button @click="rebootTo()">重启设备</n-button>
+                    </n-space>
+                </div>
+            </n-card>
+        </n-tab-pane>
     </n-tabs>
 </template>
 <script lang="ts" setup>
@@ -155,6 +213,17 @@ const isBrowserSupported = "usb" in navigator;
 
 const isDeviceInfoLoading = ref(false);
 const isUserCancelSelect = ref(false);
+const isDeviceBusy = ref(false);
+
+const ComputedCurrentTab = computed(() => {
+    if (!isConnected.value) {
+        return "waiting";
+    } else if (!FlashStateList.value?.length) {
+        return "operate"
+    } else {
+        return "flashDirectory"
+    }
+});
 
 useEventListener(navigator.usb, "disconnect", (e: USBConnectionEvent) => {
     if (e.device === device.device) {
@@ -227,10 +296,10 @@ async function handleBootImageFileDrop(e: { file: UploadFileInfo }) {
                 h("br"),
                 "刷入错误的镜像可能",
                 h("b", "导致设备损坏"),
-                ", 请仔细确认", 
-                h("b", "设备名称"), 
-                "以及", 
-                "将要刷入的", 
+                ", 请仔细确认",
+                h("b", "设备名称"),
+                "以及",
+                "将要刷入的",
                 h("b", "镜像文件名"),
                 "."
             ]
@@ -240,6 +309,7 @@ async function handleBootImageFileDrop(e: { file: UploadFileInfo }) {
             dialogInst.maskClosable = false;
             return new Promise(async (resolve) => {
                 try {
+                    isDeviceBusy.value = true;
                     await device.bootBlob(e.file.file!, (e) => {
                         dialogInst.positiveText = (e * 100).toFixed(1).toString() + "%";
                         if (e === 1) {
@@ -274,6 +344,8 @@ async function handleBootImageFileDrop(e: { file: UploadFileInfo }) {
                     } else {
                         throw e;
                     }
+                } finally {
+                    isDeviceBusy.value = false;
                 }
             });
         },
@@ -335,15 +407,15 @@ async function requestFlashImageToTarget() {
     const dialogInst = dialog.warning({
         title: "刷入单个镜像",
         content() {
-           return [
+            return [
                 "确定要在设备 ",
-                h("b", DeviceInfo.product), 
-                " 上将镜像 ", 
-                h("b", file.name), 
-                " 刷入到分区 ", 
+                h("b", DeviceInfo.product),
+                " 上将镜像 ",
+                h("b", file.name),
+                " 刷入到分区 ",
                 h("b", target),
-                " 吗?", 
-                h("br"), 
+                " 吗?",
+                h("br"),
                 h("br"),
                 "刷入错误的镜像可能",
                 h("b", "导致设备损坏"),
@@ -362,6 +434,7 @@ async function requestFlashImageToTarget() {
             dialogInst.maskClosable = false;
             return new Promise(async (resolve) => {
                 if (!file?.file) return;
+                isDeviceBusy.value = true;
                 try {
                     await device.flashBlob(target, file.file, (e) => {
                         dialogInst.positiveText = (e * 100).toFixed(1).toString() + "%";
@@ -388,6 +461,7 @@ async function requestFlashImageToTarget() {
                         throw e;
                     }
                 } finally {
+                    isDeviceBusy.value = false;
                     resolve(true);
                 }
             });
@@ -404,6 +478,7 @@ async function requestFlashImageToTarget() {
 }
 
 import ConfirmInput from "./ConfirmInput.vue";
+import { SelectMixedOption } from "naive-ui/es/select/src/interface";
 async function requestWipeDevice() {
     const dialogInst = dialog.error({
         title: "清空数据",
@@ -429,10 +504,10 @@ async function requestWipeDevice() {
                 h("br"),
                 h("br"),
                 `在下方输入框内输入 "wipe" 确认清空该设备上的所有数据.`,
-                h("br"), 
                 h("br"),
-                h(ConfirmInput, { 
-                    onValidated (validated) {
+                h("br"),
+                h(ConfirmInput, {
+                    onValidated(validated) {
                         dialogInst.positiveButtonProps!.disabled = !validated;
                     },
                     confirmWord: `wipe`
@@ -443,9 +518,10 @@ async function requestWipeDevice() {
             dialogInst.loading = true;
             dialogInst.maskClosable = false;
             try {
+                isDeviceBusy.value = true;
                 await device.runCommand("erase:userdata");
                 await device.runCommand("erase:cache");
-            } catch(e) {
+            } catch (e) {
                 if (e instanceof FastbootError) {
                     dialog.error({
                         title: "清空数据失败",
@@ -461,10 +537,12 @@ async function requestWipeDevice() {
                 } else {
                     throw e;
                 }
-                
+
                 dialogInst.loading = false;
                 dialogInst.maskClosable = true;
                 return false;
+            } finally {
+                isDeviceBusy.value = false;
             }
         },
         onClose() {
@@ -526,6 +604,7 @@ async function requestLockBl() {
             dialogInst.loading = true;
             dialogInst.maskClosable = false;
             try {
+                isDeviceBusy.value = true;
                 await device.runCommand("flashing:lock");
             } catch (e) {
                 if (e instanceof FastbootError) {
@@ -547,6 +626,8 @@ async function requestLockBl() {
                 dialogInst.loading = false;
                 dialogInst.maskClosable = true;
                 return false;
+            } finally {
+                isDeviceBusy.value = false;
             }
         },
         onClose() {
@@ -566,6 +647,7 @@ async function requestLockBl() {
 
 async function switchSlot(slot: string) {
     try {
+        isDeviceBusy.value = true;
         await device.runCommand("set_active:" + slot);
         DeviceInfo["current-slot"] = (await device.getVariable("current-slot"))!;
     } catch (e) {
@@ -585,8 +667,275 @@ async function switchSlot(slot: string) {
             throw e;
         }
         return false;
+    } finally {
+        isDeviceBusy.value = false;
     }
-    
+
+}
+
+const FlashDirectoryFileDropRef = ref<UploadInst>();
+const FlashDirectoryFileList = ref<UploadFileInfo[]>([]);
+const FlashDirectorySelectedScript = ref<string>();
+const FlashDirectoryScriptOptions = ref<SelectMixedOption[]>([]);
+const ComputedFlashDirectoryName = computed(() => {
+    return FlashDirectoryFileList.value[0]?.fullPath?.split("/")[1];
+});
+
+watch(FlashDirectoryFileList, (v) => {
+    FlashDirectoryScriptOptions.value = v.filter(f => {
+        if (f.fullPath) {
+            const sp = f.fullPath.split("/");
+            return sp.length === 3 && sp[2].endsWith(".bat");
+        }
+        return false;
+    }).map(v => {
+        return {
+            label: v.name,
+            value: v.fullPath!
+        }
+    });
+
+    if (FlashDirectoryScriptOptions.value.length > 0) {
+        FlashDirectorySelectedScript.value = FlashDirectoryScriptOptions.value[0].value as string;
+    } else {
+        FlashDirectorySelectedScript.value = undefined;
+    }
+});
+
+watch(FlashDirectoryFileDropRef as never, (v: { $el: HTMLDivElement }) => {
+    if (v?.$el) {
+        v.$el.querySelector("input")?.addEventListener("change", () => {
+            FlashDirectoryFileList.value = [];
+        }, { capture: true });
+        v.$el.querySelector("div.n-upload-trigger")?.addEventListener("drop", () => {
+            FlashDirectoryFileList.value = [];
+        }, { capture: true });
+    }
+});
+
+async function requestFlashDirectoryToTarget() {
+    const script = FlashDirectoryFileList.value.find(f => f.fullPath === FlashDirectorySelectedScript.value);
+    if (!script?.file) return;
+    dialog.warning({
+        title: "刷入线刷包",
+        content() {
+            return [
+                "确定要在设备 ",
+                h("b", DeviceInfo.product),
+                " 上刷入线刷包 ",
+                h("b", ComputedFlashDirectoryName.value),
+                " 的 ",
+                h("b", script.name),
+                " 吗?",
+                h("br"),
+                h("br"),
+                "刷入错误的线刷包可能",
+                h("b", "导致设备损坏"),
+                ", 请仔细确认",
+                h("b", "设备名称"),
+                "以及",
+                "将要刷入的",
+                h("b", "线刷包文件夹名"),
+                "."
+            ]
+        },
+        onPositiveClick() {
+            flashDirectoryToTarget();
+        },
+        positiveText: '刷写',
+        negativeText: '取消',
+    });
+}
+
+interface FlashState {
+    description: string;
+    status: "pending" | "progressing" | "success" | "error",
+    progress?: string;
+}
+const FlashStateList = ref<FlashState[]>();
+
+function parseFlashScript(script: string): { type: string, value: any }[] {
+    return script.split("\n")
+        .map(v => v.replaceAll(" %*", "").replaceAll("%~dp0", ".\\").replaceAll("\\", "/")).map(v => {
+            if (v.startsWith("fastboot flash")) {
+                const flashInfo = v.split(" ").map(v => v.trim()).filter(v => !!v && !v.startsWith("-"));
+                return {
+                    type: "flash",
+                    value: { target: flashInfo[2], file: flashInfo[3] }
+                }
+            } else if (v.startsWith("fastboot erase")) {
+                const eraseInfo = v.split(" ").map(v => v.trim()).filter(v => !!v && !v.startsWith("-"));
+                return {
+                    type: "erase",
+                    value: eraseInfo[2]
+                }
+            } else if (v.startsWith("fastboot reboot")) {
+                return {
+                    type: "reboot",
+                    value: ""
+                }
+            } else {
+                return { type: "other", value: v }
+            }
+        })
+}
+
+function findImageFileByName(filename: string): File | undefined {
+    let path = filename;
+    const dirname = ComputedFlashDirectoryName.value;
+    if (!path.startsWith("/")) {
+        if (path.startsWith("./")) {
+            path = `/${dirname}/` + path.substring(2);
+        } else {
+            path = `/${dirname}/` + path;
+        }
+    }
+    return FlashDirectoryFileList.value.find(f => f.fullPath === path)?.file || undefined;
+}
+
+async function flashDirectoryToTarget() {
+    FlashStateList.value = [];
+    const state = FlashStateList.value;
+    let currentState: FlashState;
+    try {
+        isDeviceBusy.value = true;
+        currentState = reactive({
+            description: "正在解析刷写脚本...",
+            status: "progressing"
+        });
+        state.push(currentState);
+        const script = FlashDirectoryFileList.value.find(f => f.fullPath === FlashDirectorySelectedScript.value);
+        const scriptContent = await script?.file?.text();
+        if (!scriptContent) {
+            throw Error("刷写脚本解析失败: 无法读取脚本内容");
+        }
+        if (DeviceInfo.product && !scriptContent.includes(`^product: *${DeviceInfo.product}`)) {
+            const resp = await new Promise((resolve) => {
+                dialog.warning({
+                    title: "刷入线刷包",
+                    content: "将要刷入的线刷包可能与当前设备不符 (" + DeviceInfo.product + "), 强行刷入可能导致设备损坏, 仍要刷入吗?",
+                    onPositiveClick() { resolve(true); },
+                    onNegativeClick() { resolve(false); },
+                    closable: false,
+                    maskClosable: false,
+                    closeOnEsc: false,
+                    positiveText: "强行刷入",
+                    negativeText: "取消"
+                })
+            });
+            if (!resp) {
+                throw Error("刷入失败: 操作被取消");
+            }
+        }
+        const scriptActions = parseFlashScript(scriptContent).filter(v => v.type !== "other");
+
+        currentState.description = `将要刷写 ${scriptActions.filter(v => v.type === 'flash').length} 个分区.`;
+        currentState.status = "success";
+        state.push({
+            "description": "开始执行刷写脚本...",
+            "status": "success"
+        });
+
+        const stateMap = new Map();
+        for (const action of scriptActions) {
+            let stepState: FlashState;
+            if (action.type === "flash") {
+                stepState = reactive({
+                    description: `刷写 ${action.value.target} 分区`,
+                    status: "pending"
+                });
+            } else if (action.type === "erase") {
+                stepState = reactive({
+                    description: `擦除 ${action.value} 分区`,
+                    status: "pending"
+                });
+            } else if (action.type === "reboot") {
+                stepState = reactive({
+                    description: `重启设备`,
+                    status: "pending"
+                });
+            } else {
+                throw Error("执行脚本失败: 未定义操作 " + action.type);
+            }
+            stateMap.set(action, stepState);
+            FlashStateList.value.push(stepState);
+        }
+        for (const action of scriptActions) {
+            const stepState: FlashState = stateMap.get(action)!;
+            currentState = stepState;
+            currentState.status = "progressing";
+            if (action.type === "flash") {
+                const partition = action.value.target;
+                const file = findImageFileByName(action.value.file);
+                if (!file) {
+                    throw Error(`刷写 ${partition} 分区失败: 找不到 ${action.value.file}.`)
+                }
+                try {
+                    const stateStr = currentState.description;
+                    await device.flashBlob(partition, file, progress => {
+                        currentState.progress = (progress * 100).toFixed(1);
+                        currentState.description = stateStr + `... ${currentState.progress}%`
+                    });
+                    currentState.description = stateStr;
+
+                } catch (e) {
+                    if (e instanceof FastbootError) {
+                        throw Error(`刷写 ${partition} 分区失败, Bootloader返回错误: ${e.bootloaderMessage}`);
+                    }
+                    throw e;
+                }
+            } else if (action.type === "erase") {
+                const partition = action.value;
+                try {
+                    await device.runCommand(`erase:${partition}`);
+                } catch (e) {
+                    if (e instanceof FastbootError) {
+                        throw Error(`擦除 ${partition} 分区失败, Bootloader返回错误: ${e.bootloaderMessage}`);
+                    }
+                    throw e;
+                }
+            } else if (action.type === "reboot") {
+                try {
+                    await device.runCommand(`reboot`);
+                } catch (e) {
+                    if (e instanceof FastbootError) {
+                        throw Error(`重启设备失败, Bootloader返回错误: ${e.bootloaderMessage}`);
+                    }
+                    throw e;
+                }
+            } else {
+                throw Error("执行脚本失败: 未定义操作 " + action.type);
+            }
+            currentState.status = "success";
+
+            stateMap.set(action, stepState);
+            FlashStateList.value.push(stepState);
+        }
+        dialog.success({
+            title: "刷写成功",
+            content: "已成功刷入线刷包.",
+            positiveText: "确定"
+        });
+    } catch (e) {
+        if (e instanceof Error && currentState!) {
+            currentState.description = e.message;
+            currentState.status = "error";
+            dialog.error({
+                title: "刷写时出现问题",
+                content: e.message,
+                positiveText: "确定"
+            });
+        } else {
+            dialog.error({
+                title: "刷写时出现问题",
+                content: String(e),
+                positiveText: "确定"
+            });
+        }
+    } finally {
+        isDeviceBusy.value = false;
+    }
+
 }
 </script>
 
