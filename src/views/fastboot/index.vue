@@ -116,7 +116,7 @@
                         <n-text>危险操作</n-text>
                         <n-space>
                             <n-button type="error" @click="requestWipeDevice">清除数据</n-button>
-                            <n-button type="error">锁定Bootloader</n-button>
+                            <n-button type="error" @click="requestLockBl">锁定Bootloader</n-button>
                         </n-space>
                         <n-text>连接</n-text>
                         <n-button @click="disconnectDevice">断开连接</n-button>
@@ -414,7 +414,9 @@ async function requestWipeDevice() {
                 " 上的所有数据吗? ",
                 h("br"),
                 h("br"),
-                "务必优先使用Recovery清空数据, 在Fastboot下清空数据需要重新格式化cache和userdata分区, 否则可能无法正常进入系统.",
+                "务必",
+                h("b", "优先使用Recovery清空数据"),
+                ", 在Fastboot下清空数据需要重新格式化cache和userdata分区, 否则可能无法正常进入系统.",
                 h("br"),
                 h("br"),
                 "此操作会导致",
@@ -472,6 +474,88 @@ async function requestWipeDevice() {
             if (dialogInst.loading) return false;
         },
         positiveText: '清空',
+        negativeText: '取消',
+        positiveButtonProps: {
+            disabled: true
+        },
+        class: "w-500px!"
+    });
+}
+
+async function requestLockBl() {
+    const dialogInst = dialog.error({
+        title: "锁定Bootloader",
+        content() {
+            return [
+                "确定要锁定设备 ",
+                h("b", DeviceInfo.product),
+                " 上的Bootloader吗? ",
+                h("br"),
+                h("br"),
+                "此操作会导致设备上的",
+                h("b", "非官方系统, 非官方Recovery, 修改过的内核, 安装了Magisk/KSU的系统无法启动"),
+                ", 同时会阻止通过Fastboot刷写任何设备的任何分区, 导致",
+                h("b", "无法通过线刷救砖"),
+                ".",
+                h("br"),
+                "在未还原到官方系统的情况下锁定Bootloader会直接导致手机",
+                h("b", "无法启动且无简单的补救措施"),
+                ".",
+                h("br"),
+                "同时锁定Bootloader会",
+                h("b", "清空设备上所有数据"),
+                ", 包括但不限于",
+                h("b", "所有应用和数据, 照片, 聊天记录, 联系人, 短信, 模块"),
+                ", 并请备份所有重要数据, 仔细确认",
+                h("b", "设备名称"),
+                "确实为需要锁定Bootloader的设备.",
+                h("br"),
+                h("br"),
+                `在下方输入框内输入 "lock" 确认确定要锁定该设备上的Bootloader.`,
+                h("br"),
+                h("br"),
+                h(ConfirmInput, {
+                    onValidated(validated) {
+                        dialogInst.positiveButtonProps!.disabled = !validated;
+                    },
+                    confirmWord: `lock`
+                })
+            ]
+        },
+        async onPositiveClick() {
+            dialogInst.loading = true;
+            dialogInst.maskClosable = false;
+            try {
+                await device.runCommand("flashing:lock");
+            } catch (e) {
+                if (e instanceof FastbootError) {
+                    dialog.error({
+                        title: "锁定Bootloader失败",
+                        content: "无法锁定Bootloader, Bootloader返回错误: " + e.bootloaderMessage,
+                        positiveText: "确定"
+                    });
+                } else if (e instanceof Error) {
+                    dialog.error({
+                        title: "锁定Bootloader失败",
+                        content: "无法锁定Bootloader, 出现错误" + e.message,
+                        positiveText: "确定"
+                    });
+                } else {
+                    throw e;
+                }
+
+                dialogInst.loading = false;
+                dialogInst.maskClosable = true;
+                return false;
+            }
+        },
+        onClose() {
+            if (dialogInst.loading) return false;
+        },
+        onNegativeClick() {
+            if (dialogInst.loading) return false;
+        },
+        positiveText: '锁定',
         negativeText: '取消',
         positiveButtonProps: {
             disabled: true

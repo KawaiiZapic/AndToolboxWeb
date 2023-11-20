@@ -28,8 +28,8 @@ index 26d09baa437e1b2acc7924b0ba04500043fef94d..ecd7a9a1f0bec07af303cc3f97edeff2
              if (resp) {
 -                // AOSP fastboot requires hex
 -                return Math.min(parseInt(resp, 16), MAX_DOWNLOAD_SIZE);
-+				// not all device provide max-download-size in hex way
-+				let radix = resp.startsWith("0x") ? 16 : 10;
++				 // not all device provide max-download-size in hex way
++				 let radix = resp.startsWith("0x") ? 16 : 10;
 +                return Math.min(parseInt(resp, radix), MAX_DOWNLOAD_SIZE);
              }
          }
