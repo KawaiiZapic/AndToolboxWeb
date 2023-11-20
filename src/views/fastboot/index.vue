@@ -1,6 +1,6 @@
 <template>
     <n-tabs class="animated-wrapper" animated :value="ComputedCurrentTab">
-        <n-tab-pane name="waiting">
+        <n-tab-pane name="waiting" display-directive="show:lazy">
             <template v-if="isBrowserSupported">
                 <div class="text-xl">
                     未连接设备
@@ -26,7 +26,7 @@
                 </div>
             </template>
         </n-tab-pane>
-        <n-tab-pane name="operate">
+        <n-tab-pane name="operate" display-directive="show:lazy">
             <template v-if="!isDeviceReadError">
                 <div class="text-xl">
                     {{ DeviceInfo.product }} <span class="text-sm opacity-80">({{ DeviceInfo.serialno }})</span>
@@ -181,7 +181,7 @@
                 </n-card>
             </n-space>
         </n-tab-pane>
-        <n-tab-pane name="flashDirectory">
+        <n-tab-pane name="flashDirectory" display-directive="show:lazy">
             <n-card title="正在刷入...">
                 <div class="flex flex-col">
                     <n-scrollbar class="max-h-75vh">
@@ -907,9 +907,6 @@ async function flashDirectoryToTarget() {
                 throw Error("执行脚本失败: 未定义操作 " + action.type);
             }
             currentState.status = "success";
-
-            stateMap.set(action, stepState);
-            FlashStateList.value.push(stepState);
         }
         dialog.success({
             title: "刷写成功",
@@ -937,6 +934,14 @@ async function flashDirectoryToTarget() {
     }
 
 }
+
+useEventListener(window, "beforeunload", e => {
+    if (isDeviceBusy.value === true) {
+        e.preventDefault();
+        e.returnValue = "";
+        return "";
+    }
+});
 </script>
 
 <style scoped>

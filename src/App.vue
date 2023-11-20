@@ -1,12 +1,12 @@
 <template>
   <div class="max-w-1280px mx-auto px-4">
     <n-tabs animated type="line">
-      <n-tab-pane name="fastboot" tab="Fastboot">
+      <n-tab-pane name="fastboot" tab="Fastboot" display-directive="show:lazy">
         <n-dialog-provider>
           <fastboot-view />
         </n-dialog-provider>
       </n-tab-pane>
-      <n-tab-pane name="adb" tab="ADB">
+      <n-tab-pane name="adb" tab="ADB" display-directive="show:lazy">
           <adb-view />
         </n-tab-pane>
     </n-tabs>
